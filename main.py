@@ -1,6 +1,7 @@
 from collections import UserDict
 from datetime import datetime, date, timedelta
 from functools import wraps
+import re
 
 
 class Field:
@@ -57,13 +58,13 @@ class Record:
 
     def show_birthday(self):
         if self.birthday:
-            return self.birthday.value.strftime('%d.%m.%Y')
+            return self.birthday.value
         return "Birthday not set"
 
     def __str__(self):
-        phones = '; '.join(p.value for p in self.phones)
+        phones = ', '.join(p.value for p in self.phones)
         birthday = self.show_birthday() if self.birthday else "Not set"
-        return f"Contact name: {self.name.value}, phones: {phones}, birthday: {birthday}"
+        return f"Contact name: {self.name.value}; phones: {phones}; birthday: {birthday}"
 
 class AddressBook(UserDict):
     def add_record(self, record):
@@ -95,9 +96,10 @@ class AddressBook(UserDict):
 
         for record in self.data.values():
             if record.birthday:
-                birthday_this_year = record.birthday.value.replace(year=today.year)
+                birthday_date = datetime.strptime(record.birthday.value, "%d.%m.%Y").date()
+                birthday_this_year = birthday_date.replace(year=today.year)
                 if birthday_this_year < today:
-                    birthday_this_year = record.birthday.value.replace(year=today.year + 1)
+                    birthday_this_year = birthday_date.replace(year=today.year + 1)
                 birthday_this_year = self.__adjust_for_weekend(birthday_this_year)
                 if 0 <= (birthday_this_year - today).days <= days:
                     upcoming_birthdays.append({
@@ -113,8 +115,8 @@ class AddressBook(UserDict):
 class Birthday(Field):
     def __init__(self, value):
         try:
-            date = datetime.strptime(value, '%d.%m.%Y').date()
-            super().__init__(date)
+            datetime.strptime(value, '%d.%m.%Y')
+            super().__init__(value)
         except ValueError:
             raise ValueError("Invalid date format. Use DD.MM.YYYY")
         
@@ -172,7 +174,7 @@ def phone_contact(args, book):
     record = book.find(name)
     if record is None:
         return "Contact doesn't exist."
-    return str(record)
+    return ", ".join(phone.value for phone in record.phones)
 
 
 @input_error
